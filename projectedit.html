@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electricity Bill Manager</title>
+
+<!-- CHART JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+    font-family:Arial, sans-serif;
+    margin:0;
+    padding:0;
+    background:#f2f3f7;
+}
+
+header{
+    background:#2a4ba5;
+    color:white;
+    text-align:center;
+    padding:20px;
+    font-size:30px;
+    font-weight:bold;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+}
+
+.container{
+    width:90%;
+    margin:auto;
+    margin-top:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+h2{
+    margin-top:0;
+    color:#2a4ba5;
+}
+
+input{
+    width:96%;
+    padding:10px;
+    margin-top:8px;
+    margin-bottom:12px;
+    border:1px solid #ccc;
+    border-radius:5px;
+}
+
+button{
+    padding:10px 20px;
+    border:none;
+    background:#2a4ba5;
+    color:white;
+    border-radius:5px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+button:hover{
+    background:#1d3473;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+th,td{
+    border:1px solid #ddd;
+    padding:12px;
+    text-align:center;
+}
+
+th{
+    background:#2a4ba5;
+    color:white;
+}
+
+.status-paid{
+    background:#d8ffd8;
+}
+
+.status-unpaid{
+    background:#ffd8d8;
+}
+
+.chart-container{
+    width:100%;
+    margin-top:20px;
+}
+
+canvas{
+    background:white;
+    padding:10px;
+    border-radius:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+    Electricity Bill Manager with Analysis Dashboard
+</header>
+
+<div class="container">
+
+    <!-- ADD CUSTOMER -->
+    <div class="card">
+
+        <h2>Add Customer</h2>
+
+        <input type="text" id="userid" placeholder="Customer ID">
+
+        <input type="text" id="name" placeholder="Customer Name">
+
+        <input type="text" id="address" placeholder="Address">
+
+        <input type="number" id="units" placeholder="Units Consumed">
+
+        <input type="date" id="due">
+
+        <button onclick="addCustomer()">Add Customer</button>
+
+    </div>
+
+    <!-- SEARCH -->
+    <div class="card">
+
+        <h2>Search Customer</h2>
+
+        <input type="text"
+               id="search"
+               placeholder="Search by ID or Name"
+               onkeyup="searchCustomer()">
+
+    </div>
+
+    <!-- TABLE -->
+    <div class="card">
+
+        <h2>Customer Records</h2>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Units</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="tableBody"></tbody>
+
+        </table>
+
+    </div>
+
+    <!-- REPORT -->
+    <div class="card">
+
+        <h2>Reports & Analysis</h2>
+
+        <p><b>Total Revenue :</b> ₹ <span id="total">0</span></p>
+
+        <p><b>Highest Bill :</b> ₹ <span id="max">0</span></p>
+
+        <p><b>Lowest Bill :</b> ₹ <span id="min">0</span></p>
+
+        <p><b>Average Bill :</b> ₹ <span id="avg">0</span></p>
+
+        <button onclick="applyPenalty()">
+            Apply ₹50 Penalty to Unpaid Customers
+        </button>
+
+    </div>
+
+    <!-- CHARTS -->
+    <div class="card">
+
+        <h2>Graph Analysis Dashboard</h2>
+
+        <div class="chart-container">
+            <canvas id="billChart"></canvas>
+        </div>
+
+        <br>
+
+        <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+// -------------------------------
+// LOCAL STORAGE
+// -------------------------------
+
+let customers = JSON.parse(localStorage.getItem("customers") || "[]");
+
+function saveData(){
+    localStorage.setItem("customers", JSON.stringify(customers));
+}
+
+// -------------------------------
+// BILL CALCULATION
+// -------------------------------
+
+function calculateAmount(units){
+
+    if(units <= 100){
+        return units * 3;
+    }
+
+    else if(units <= 500){
+        return (100*3) + ((units-100)*5);
+    }
+
+    else if(units <= 1000){
+        return (100*3) + (400*5) + ((units-500)*8);
+    }
+
+    else{
+        return (100*3) + (400*5) + (500*8) + ((units-1000)*10);
+    }
+}
+
+// -------------------------------
+// ADD CUSTOMER
+// -------------------------------
+
+function addCustomer(){
+
+    let id = document.getElementById("userid").value;
+
+    let name = document.getElementById("name").value;
+
+    let address = document.getElementById("address").value;
+
+    let units = parseInt(document.getElementById("units").value);
+
+    let due = document.getElementById("due").value;
+
+    if(!id || !name || !address || !units || !due){
+
+        alert("Please fill all fields");
+
+        return;
+    }
+
+    let amount = calculateAmount(units);
+
+    customers.push({
+
+        id:id,
+        name:name,
+        address:address,
+        units:units,
+        amount:amount,
+        status:"UNPAID",
+        due:due
+
+    });
+
+    saveData();
+
+    display();
+
+    alert("Customer Added Successfully");
+
+    document.getElementById("userid").value="";
+    document.getElementById("name").value="";
+    document.getElementById("address").value="";
+    document.getElementById("units").value="";
+    document.getElementById("due").value="";
+}
+
+// -------------------------------
+// DISPLAY TABLE
+// -------------------------------
+
+function display(list = customers){
+
+    let table = document.getElementById("tableBody");
+
+    table.innerHTML="";
+
+    list.forEach((c,index)=>{
+
+        table.innerHTML += `
+
+        <tr class="${c.status === 'PAID' ? 'status-paid' : 'status-unpaid'}">
+
+            <td>${c.id}</td>
+
+            <td>${c.name}</td>
+
+            <td>${c.units}</td>
+
+            <td>₹ ${c.amount}</td>
+
+            <td>${c.status}</td>
+
+            <td>${c.due}</td>
+
+            <td>
+
+                <button onclick="markPaid(${index})">
+
+                    Mark Paid
+
+                </button>
+
+            </td>
+
+        </tr>
+
+        `;
+    });
+
+    generateReport();
+
+    generateCharts();
+}
+
+// -------------------------------
+// SEARCH
+// -------------------------------
+
+function searchCustomer(){
+
+    let key = document.getElementById("search")
+                      .value
+                      .toLowerCase();
+
+    let filtered = customers.filter(c =>
+
+        c.name.toLowerCase().includes(key) ||
+
+        c.id.toLowerCase().includes(key)
+
+    );
+
+    display(filtered);
+}
+
+// -------------------------------
+// MARK PAID
+// -------------------------------
+
+function markPaid(index){
+
+    customers[index].status = "PAID";
+
+    saveData();
+
+    display();
+}
+
+// -------------------------------
+// APPLY PENALTY
+// -------------------------------
+
+function applyPenalty(){
+
+    customers.forEach(c => {
+
+        if(c.status === "UNPAID"){
+
+            c.amount += 50;
+        }
+    });
+
+    saveData();
+
+    display();
+
+    alert("Penalty Applied");
+}
+
+// -------------------------------
+// REPORT GENERATION
+// -------------------------------
+
+function generateReport(){
+
+    if(customers.length === 0){
+
+        document.getElementById("total").innerText = 0;
+        document.getElementById("max").innerText = 0;
+        document.getElementById("min").innerText = 0;
+        document.getElementById("avg").innerText = 0;
+
+        return;
+    }
+
+    let amounts = customers.map(c => c.amount);
+
+    let total = amounts.reduce((a,b)=>a+b,0);
+
+    let max = Math.max(...amounts);
+
+    let min = Math.min(...amounts);
+
+    let avg = (total / amounts.length).toFixed(2);
+
+    document.getElementById("total").innerText = total;
+
+    document.getElementById("max").innerText = max;
+
+    document.getElementById("min").innerText = min;
+
+    document.getElementById("avg").innerText = avg;
+}
+
+// -------------------------------
+// CHARTS
+// -------------------------------
+
+let billChart;
+let statusChart;
+
+function generateCharts(){
+
+    let names = customers.map(c => c.name);
+
+    let amounts = customers.map(c => c.amount);
+
+    let paid = customers.filter(c => c.status === "PAID").length;
+
+    let unpaid = customers.filter(c => c.status === "UNPAID").length;
+
+    // DESTROY OLD CHARTS
+
+    if(billChart){
+        billChart.destroy();
+    }
+
+    if(statusChart){
+        statusChart.destroy();
+    }
+
+    // BAR CHART
+
+    let ctx1 = document.getElementById("billChart");
+
+    billChart = new Chart(ctx1,{
+
+        type:"bar",
+
+        data:{
+
+            labels:names,
+
+            datasets:[{
+
+                label:"Bill Amount",
+
+                data:amounts,
+
+                borderWidth:1
+
+            }]
+        },
+
+        options:{
+
+            responsive:true,
+
+            plugins:{
+                legend:{
+                    display:true
+                }
+            }
+        }
+    });
+
+    // PIE CHART
+
+    let ctx2 = document.getElementById("statusChart");
+
+    statusChart = new Chart(ctx2,{
+
+        type:"pie",
+
+        data:{
+
+            labels:["PAID","UNPAID"],
+
+            datasets:[{
+
+                data:[paid, unpaid]
+
+            }]
+        },
+
+        options:{
+            responsive:true
+        }
+    });
+}
+
+// -------------------------------
+// INITIAL DISPLAY
+// -------------------------------
+
+display();
+
+</script>
+
+</body>
+</html>
